@@ -14,6 +14,7 @@ public class Card {
 
     private String number;
 
+    @ManyToOne
     @Column("user_id")
-    private Long userId;
+    private User user;
 }

@@ -2,7 +2,7 @@ package org.alz2019.session.impl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
+import lombok.extern.log4j.Log4j2;
 import org.alz2019.collection.LazyList;
 import org.alz2019.util.EntityKey;
 
@@ -20,7 +20,7 @@ import static org.alz2019.util.EntityUtil.*;
 import static org.alz2019.util.SqlUtil.*;
 
 @RequiredArgsConstructor
-@Slf4j
+@Log4j2
 public class EntityOperations {
     private final DataSource dataSource;
     private final StatefulSession statefulSession;
@@ -30,7 +30,7 @@ public class EntityOperations {
         EntityKey<?> entityKey = EntityKey.of(entityType, id);
         Object cached = persistenceContext.getEntity(entityKey);
         if (cached != null) {
-            System.err.println("Returning cached entity: " + cached);
+            log.trace("Returning cached entity: " + cached);
             return entityType.cast(cached);
         }
         Field idField = getIdField(entityType);
@@ -50,12 +50,12 @@ public class EntityOperations {
         List<T> list = new ArrayList<>();
         try (Connection connection = dataSource.getConnection()) {
             String tableName = resolveTableName(entityType);
-            System.err.println("Table name: " + tableName);
+            log.trace("Table name: " + tableName);
             String columnName = resolveColumnName(field);
             String select = String.format(SELECT, tableName, columnName);
             try (PreparedStatement statement = connection.prepareStatement(select)) {
                 statement.setObject(1, value);
-                System.err.println("Select statement: " + statement);
+                log.trace("Select statement: " + statement);
                 ResultSet resultSet = statement.executeQuery();
                 while (resultSet.next()) {
                     T entity = createEntity(entityType, resultSet);
@@ -68,17 +68,17 @@ public class EntityOperations {
 
     @SneakyThrows
     public <T> T insert(T entity) {
-        System.err.println("Inserting: " + entity);
+        log.trace("Inserting: " + entity);
         Class<?> entityClass = entity.getClass();
         try (Connection connection = dataSource.getConnection()) {
             String tableName = resolveTableName(entityClass);
-            System.err.println("Table name: " + tableName);
+            log.trace("Table name: " + tableName);
             String columns = commaSeparatedColumns(entityClass);
             String params = commaSeparatedParams(entityClass);
             String insert = String.format(INSERT_INTO, tableName, columns, params);
             try (PreparedStatement statement = connection.prepareStatement(insert)) {
                 fillInsertParams(statement, entity);
-                System.err.println("Insert statement: " + statement);
+                log.trace("Insert statement: " + statement);
                 statement.executeUpdate();
             }
         }
@@ -112,30 +112,30 @@ public class EntityOperations {
         for (Field field : entityType.getDeclaredFields()) {
             field.setAccessible(true);
             if (isSimpleColumnField(field)) {
-                System.err.println("Simple field: " + field.getName());
+                log.trace("Simple field: " + field.getName());
                 String columnName = resolveColumnName(field);
-                System.err.println("Column name: " + columnName);
+                log.trace("Column name: " + columnName);
                 Object value = resultSet.getObject(columnName);
-                System.err.println("Column value: " + value);
+                log.trace("Column value: " + value);
                 field.set(entity, value);
             } else if (isEntityField(field)) {
-                System.err.println("Entity field: " + field.getName());
+                log.trace("Entity field: " + field.getName());
                 Class<?> type = field.getType();
                 String columnName = resolveColumnName(field);
-                System.err.println("Column name: " + columnName);
+                log.trace("Column name: " + columnName);
                 Object value = resultSet.getObject(columnName);
-                System.err.println("JoinColumn name: " + columnName);
+                log.trace("JoinColumn name: " + columnName);
                 Object related = findById(type, value);
                 field.set(entity, related);
             } else if (isEntityCollectionField(field)) {
-                System.err.println("Entity collection field: " + field.getName());
+                log.trace("Entity collection field: " + field.getName());
                 Class<?> entityCollections = getEntityCollections(field);
-                System.err.println("Entity collection field type: " + entityCollections.getSimpleName());
+                log.trace("Entity collection field type: " + entityCollections.getSimpleName());
                 Field associatedEntityField = getAssociatedEntityField(entityType, entityCollections);
-                System.err.println("Associated entity field: " + associatedEntityField.getName());
+                log.trace("Associated entity field: " + associatedEntityField.getName());
                 Object id = getId(entity);
                 LazyList<?> lazyList = createLazyList(entityCollections, associatedEntityField, id);
-                System.err.println("Set lazy list to field " + field.getName());
+                log.trace("Set lazy list to field " + field.getName());
                 field.set(entity, lazyList);
             }
         }
@@ -152,11 +152,11 @@ public class EntityOperations {
 
     @SneakyThrows
     public <T> T update(T entity) {
-        System.err.println("Updating entity: " + entity);
+        log.trace("Updating entity: " + entity);
         Class<?> entityClass = entity.getClass();
         try (Connection connection = dataSource.getConnection()) {
             String tableName = resolveTableName(entityClass);
-            System.err.println("Table name: " + tableName);
+            log.trace("Table name: " + tableName);
             String columns = commaSeparatedSetters(entityClass);
             String idColumn = resolveIdColumnName(entityClass) + " = ?";
             String update = String.format(UPDATE, tableName, columns, idColumn);
@@ -164,7 +164,7 @@ public class EntityOperations {
                 fillUpdateParams(statement, entity);
                 int index = getUpdatableFields(entityClass).length + 1;
                 statement.setObject(index, getId(entity));
-                System.err.println("Update statement: " + statement);
+                log.trace("Update statement: " + statement);
                 statement.executeUpdate();
             }
         }
@@ -173,17 +173,17 @@ public class EntityOperations {
 
     @SneakyThrows
     public <T> T delete(T entity) {
-        System.err.println("Deleting entity: " + entity);
+        log.trace("Deleting entity: " + entity);
         Class<?> entityClass = entity.getClass();
         try (Connection connection = dataSource.getConnection()) {
             String tableName = resolveTableName(entityClass);
-            System.err.println("Table name: " + tableName);
+            log.trace("Table name: " + tableName);
             String columnName = resolveIdColumnName(entityClass);
             String delete = String.format(DELETE, tableName, columnName);
             try (PreparedStatement statement = connection.prepareStatement(delete)) {
                 Object id = getId(entity);
                 statement.setObject(1, id);
-                System.err.println("Delete statement: " + statement);
+                log.trace("Delete statement: " + statement);
                 statement.executeUpdate();
             }
         }

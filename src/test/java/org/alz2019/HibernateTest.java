@@ -1,18 +1,31 @@
 package org.alz2019;
 
-import org.alz2019.model.Card;
 import org.alz2019.model.User;
 import org.alz2019.session.Session;
 import org.alz2019.session.SessionFactory;
 import org.alz2019.session.impl.SimpleSessionFactory;
-import org.checkerframework.checker.units.qual.C;
-import org.postgresql.ds.PGSimpleDataSource;
+import org.h2.jdbcx.JdbcDataSource;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Test;
 
 import javax.sql.DataSource;
 
-public class AppTest {
-    public static void main(String[] args) {
-        SessionFactory sessionFactory = new SimpleSessionFactory(initDataSource());
+public class HibernateTest {
+    @Test
+    @Order(1)
+    public void testFind() {
+        SessionFactory sessionFactory = new SimpleSessionFactory(initH2DataSource());
+        Session session = sessionFactory.openSession();
+
+        User foundUser = session.find(User.class, 1L);
+        System.out.println("Found user: " + foundUser);
+        foundUser.getCards().forEach(System.out::println);
+    }
+
+    @Test
+    @Order(2)
+    public void lifecycleTest() {
+        SessionFactory sessionFactory = new SimpleSessionFactory(initH2DataSource());
         Session session = sessionFactory.openSession();
 
         User newUser = createNewUser();
@@ -33,10 +46,11 @@ public class AppTest {
         session.close();
     }
 
-    private static DataSource initDataSource() {
-        PGSimpleDataSource dataSource = new PGSimpleDataSource();
-        dataSource.setUser("test");
-        return dataSource;
+    private static DataSource initH2DataSource() {
+        JdbcDataSource jdbcDataSource = new JdbcDataSource();
+        jdbcDataSource.setURL("jdbc:h2:mem:demo;INIT=runscript from 'classpath:init.sql'");
+        jdbcDataSource.setUser("sa");
+        return jdbcDataSource;
     }
 
     private static User createNewUser() {

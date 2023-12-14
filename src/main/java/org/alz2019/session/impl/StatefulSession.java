@@ -1,7 +1,7 @@
 package org.alz2019.session.impl;
 
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
+import lombok.extern.log4j.Log4j2;
 import org.alz2019.action.EntityAction;
 import org.alz2019.action.EntityDeleteAction;
 import org.alz2019.action.EntityInsertAction;
@@ -16,11 +16,11 @@ import java.util.Queue;
 
 import static java.util.Comparator.comparing;
 
-@Slf4j
+@Log4j2
 public class StatefulSession implements Session {
-    private EntityOperations operations;
-    private PersistenceContext persistenceContext = new PersistenceContext();
-    private Queue<EntityAction> actionQueue = new PriorityQueue<>(comparing(EntityAction::priority));
+    private final EntityOperations operations;
+    private final PersistenceContext persistenceContext = new PersistenceContext();
+    private final Queue<EntityAction> actionQueue = new PriorityQueue<>(comparing(EntityAction::priority));
     @Getter
     private boolean closed;
 
@@ -35,7 +35,7 @@ public class StatefulSession implements Session {
             throw new RuntimeException("Entity is already present in context");
         }
         persistenceContext.addEntity(entity);
-        System.err.println("Adding insert action to action queue for entity: " + entity);
+        log.trace("Adding insert action to action queue for entity: " + entity);
         actionQueue.add(new EntityInsertAction(entity, operations));
     }
 
@@ -63,7 +63,7 @@ public class StatefulSession implements Session {
     }
 
     private void dirtyCheck() {
-        System.err.println("Running Dirty Checking");
+        log.trace("Running Dirty Checking");
         List<?> entities = persistenceContext.getDirtyEntities();
         List<EntityUpdateAction> actions = entities.stream()
                 .map(e -> new EntityUpdateAction(e, operations))
@@ -72,7 +72,7 @@ public class StatefulSession implements Session {
     }
 
     private void flushActionQueue() {
-        System.err.println("Flushing");
+        log.trace("Flushing");
         while (!actionQueue.isEmpty()) {
             EntityAction action = actionQueue.poll();
             action.execute();
@@ -85,7 +85,7 @@ public class StatefulSession implements Session {
         flush();
         persistenceContext.clear();
         closed = true;
-        System.err.println("Closed session");
+        log.trace("Closed session");
     }
 
     void checkIsOpen() {

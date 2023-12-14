@@ -1,12 +1,12 @@
 package org.alz2019.collection;
 
 import lombok.experimental.Delegate;
-import lombok.extern.slf4j.Slf4j;
+import lombok.extern.log4j.Log4j2;
 
 import java.util.List;
 import java.util.function.Supplier;
 
-@Slf4j
+@Log4j2
 public class LazyList<T> implements List<T> {
     private final Supplier<List<T>> collectionSupplier;
     private List<T> internalList;
@@ -19,7 +19,7 @@ public class LazyList<T> implements List<T> {
     @Delegate
     private List<T> getInternalList() {
         if (internalList == null) {
-            System.err.println("Initializing lazy list");
+            log.trace("Initializing lazy list");
             internalList = collectionSupplier.get();
         }
         return internalList;
